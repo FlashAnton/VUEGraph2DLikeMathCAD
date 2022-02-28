@@ -1,0 +1,497 @@
+<HTML>
+
+	<TITLE>Проверка функционирования области для рисования</TITLE>
+
+	<BODY>
+
+		<SCRIPT SRC="Vue.js"></SCRIPT>
+		
+		<SCRIPT SRC="shim.min.js"></SCRIPT>
+		<SCRIPT SRC="xlsx.full.min.js"></SCRIPT>		
+
+		<div id="draw">
+			Начало диапазона построения: <input v-model="startX" @change="countPoints">
+			<br>
+			Конец диапазона построения: <input v-model="endX" @change="countPoints">
+			<br>
+			Шаг построения: <input v-model="step" @change="countPoints">
+			<br>
+			Шаг сетки по X: <input v-model="axisStepX" @change="countPoints">
+			<br>
+			Шаг сетки по Y: <input v-model="axisStepY" @change="countPoints">
+			<br>
+			<br>
+			<button id="btnExcelExample" @click="writeExampleExcel">Пример в Excel</button>
+			<button id="btnExcelPoints" @click="writePointsExcel">Точки в Excel</button>
+			<button id="btnExcelForm" @click="writePointsForm">Точки без записи Excel</button>
+			<br>			
+			<br>
+			<svg :width="wi" 
+				 :height="hi">
+				
+				<!-- линия оси абсцисс -->
+				<!-- цвет чёрный #000000 -->
+				<line stroke="#000000"
+						stroke-width="2"
+						:x1="this.shift" 
+						:y1="this.hi / 2" 
+						:x2="this.wi - this.shift" 
+						:y2="this.hi / 2"/>
+				
+				<!-- верхний элемент стрелки оси абсцисс -->
+				<!-- цвет чёрный #000000 -->
+				<line stroke="#000000"
+						stroke-width="2"
+						:x1="this.wi - this.shift" 
+						:y1="this.hi / 2" 
+						:x2="this.wi - this.shift - this.arLen" 
+						:y2="this.hi / 2 - this.arAng"/>
+						
+				<!-- нижний элемент стрелки оси абсцисс -->
+				<!-- цвет чёрный #000000 -->
+				<line stroke="#000000"
+						stroke-width="2"
+						:x1="this.wi - this.shift" 
+						:y1="this.hi / 2" 
+						:x2="this.wi - this.shift - this.arLen" 
+						:y2="this.hi / 2 + this.arAng"/>
+				
+				<!-- наименование оси абсцисс -->
+				<!-- цвет чёрный #000000 -->
+				<text fill="#000000"
+						font-weight="bold"
+						font-family="Tahoma"
+						:x="this.wi - this.shift - this.arLen / 2" 
+						:y="(this.hi / 2) - this.arLen / 2">X</text>
+						
+				<!-- наименование нулевой точки -->
+				<!-- цвет чёрный #000000 -->
+				<text fill="#000000"
+						font-weight="bold"
+						font-family="Tahoma"
+						:x="this.wi / 2 - this.arLen" 
+						:y="(this.hi / 2) + this.arLen">0</text>
+				
+				<!-- линия оси ординат -->
+				<!-- цвет чёрный #000000 -->
+				<line stroke="#000000"
+						stroke-width="2"
+						:x1="this.wi / 2" 
+						:y1="this.hi - this.shift" 
+						:x2="this.wi / 2" 
+						:y2="this.shift"/>
+						
+				<!-- левый элемент стрелки оси ординат -->
+				<!-- цвет чёрный #000000 -->
+				<line stroke="#000000"
+						stroke-width="2"
+						:x1="this.wi / 2" 
+						:y1="this.shift" 
+						:x2="this.wi / 2 - this.arAng" 
+						:y2="this.shift + this.arLen"/>	
+
+				<!-- правый элемент стрелки оси ординат -->
+				<!-- цвет чёрный #000000 -->
+				<line stroke="#000000"
+						stroke-width="2"
+						:x1="this.wi / 2" 
+						:y1="this.shift" 
+						:x2="this.wi / 2 + this.arAng" 
+						:y2="this.shift + this.arLen"/>						
+				
+				<!-- наименование оси ординат -->
+				<!-- цвет чёрный #000000 -->
+				<text fill="#000000"
+						font-weight="bold"
+						font-family="Tahoma"
+						:x="(this.wi / 2) + (this.arLen / 2)" 
+						:y="this.arLen">Y</text>
+				
+				<!-- нанесение линий функциональной зависимости -->
+				<!-- как в MathCAD цвет #ff0000 - красный -->
+				<!-- пользовательское предпочтение #9f22ff - фиолетовый -->
+				<line v-for="l in lines" 
+						stroke="#9f22ff"
+						stroke-width="5"
+						:x1="l.x1" 
+						:y1="l.y1" 
+						:x2="l.x2" 
+						:y2="l.y2"/>
+						
+				<!-- нанесение штрихов по абсциссе -->
+				<!-- цвет чёрный #000000 -->
+				<line v-for="s in strokesX" 
+						stroke="#000000"
+						:x1="s.x1" 
+						:y1="s.y1" 
+						:x2="s.x2" 
+						:y2="s.y2"/>
+
+				<!-- нанесение сетки по абсциссе -->
+				<!-- как в MathCAD цвет #00ff00 - зелёный -->
+				<!-- пользовательское предпочтение #d6d6d6 - серый -->
+				<line v-for="g in gridX" 
+						stroke="#d6d6d6"
+						:x1="g.x1" 
+						:y1="g.y1" 
+						:x2="g.x2" 
+						:y2="g.y2"/>
+
+				<!-- нанесение текста по абсциссе -->
+				<text v-for="s in strokesX" 
+						font-weight="normal"
+						font-size="10"
+						:x="s.txtX" 
+						:y="s.txtY">{{s.txt}}</text>
+						
+				<!-- нанесение штрихов по ординате -->
+				<line v-for="s in strokesY" 
+						stroke="#000000"
+						:x1="s.x1" 
+						:y1="s.y1" 
+						:x2="s.x2" 
+						:y2="s.y2"/>
+						
+				<!-- нанесение сетки по ординате -->
+				<!-- как в MathCAD цвет #00ff00 - зелёный -->
+				<!-- пользовательское предпочтение #d6d6d6 - серый -->				
+				<line v-for="g in gridY" 
+						stroke="#d6d6d6"
+						:x1="g.x1" 
+						:y1="g.y1" 
+						:x2="g.x2" 
+						:y2="g.y2"/>						
+
+				<!-- нанесение текста по ординате -->
+				<text v-for="s in strokesY" 
+						font-weight="normal"
+						font-size="10"
+						:x="s.txtX" 
+						:y="s.txtY">{{s.txt}}</text>						
+			</svg>
+			
+			<ol>
+				<li v-for="p in points">x: {{ p.x }}, y: {{ p.y }}</li>
+			</ol>
+		</div>
+		
+		<SCRIPT>	
+			var myView = new Vue(
+			{
+				el: "#draw",
+				
+				data:
+				{
+					//Начало диапазона построения
+					startX: -10,
+					//Конец диапазона построения
+					endX: 10,
+					maxY: -9999,
+					minY: 9999,
+					axisStepX: 1,
+					axisStepY: 0.1,
+					//Шаг построения
+					step: 0.01,
+					//Ширина области построения
+					wi: 500,
+					//Высота области построения
+					hi: 300,
+					//Сдвиг осей от края рамки
+					shift: 10,
+					//Длина стрелки оси
+					arLen: 15,
+					//Наклон стрелки оси
+					arAng: 5,
+					points:
+					[
+					],
+					lines:
+					[
+					],
+					strokesX:
+					[
+					],
+					strokesY:
+					[
+					],
+					gridX:
+					[
+					],
+					gridY:
+					[
+					],					
+				},
+				
+				computed:
+				{
+					//масштаб по абсциссе
+					scaleX:function()
+					{
+						return (Number(this.wi) - 2 * Number(this.shift)) / ( Number(this.endX) - Number(this.startX) );
+					},
+					
+					//масштаб по ординате
+					scaleY:function()
+					{
+						return (Number(this.hi) - 2 * Number(this.shift)) / ( Number(this.maxY) - Number(this.minY) );
+					},
+				},
+				
+				methods:
+				{
+				
+					makeShift:function(control)
+					{
+						switch (control)
+						{
+							case 'x1':
+							{
+								return (this.shift)
+								break;
+							}
+						}
+					},
+					
+					//Вычисление штрихов по оси абсцисс
+					countStrokesX:function()
+					{
+						var axisStep = Number(this.axisStepX);
+						
+						this.strokesX = [];
+						this.gridX = [];
+						
+						for (var i = 0; i < (Number(this.endX) - Number(this.startX)) / axisStep ; i++)
+						{
+							if (Number(this.startX) + i * axisStep != 0)
+							{
+								var str = new Object();
+								var gd = new Object();
+								
+								str.x1 = this.shift + i * axisStep * this.scaleX;
+								gd.x1 = this.shift + i * axisStep * this.scaleX;
+								str.y1 = Number(this.hi) / 2 - this.arAng;
+								gd.y1 = this.shift;
+								
+								str.x2 = this.shift + i * axisStep * this.scaleX;
+								gd.x2 = this.shift + i * axisStep * this.scaleX;
+								str.y2 = Number(this.hi) / 2 + this.arAng;
+								gd.y2 = Number(this.hi) - this.shift;
+								
+								str.txtX = (this.shift - this.arAng / 2) + i * axisStep * this.scaleX;
+								str.txtY = Number(this.hi) / 2 + this.arLen;
+								if (Number.isInteger(Number(this.startX) + i * axisStep))
+								{
+									str.txt = (Number(this.startX) + i * axisStep);
+								}
+								else
+								{
+									str.txt = (Number(this.startX) + i * axisStep).toFixed(1);
+								}
+								
+								this.strokesX.push(str);
+								this.gridX.push(gd);
+							}
+						}
+					},
+					
+					//Вычисление штрихов по оси ординат
+					countStrokesY:function()
+					{
+						var axisStep = Number(this.axisStepY);
+						
+						this.strokesY = [];
+						this.gridY = [];
+						
+						for (var i = 0; i < (Number(this.maxY) - Number(this.minY)) / axisStep ; i++)
+						{
+							if (Number(this.minY) + i * axisStep != 0)
+							{
+								var str = new Object();
+								var gd = new Object();
+								
+								str.x1 = Number(this.wi) / 2 - this.arAng;
+								gd.x1 = this.shift;
+								str.y1 = Number(this.hi) - this.shift - i * axisStep * this.scaleY;
+								gd.y1 = Number(this.hi) - this.shift - i * axisStep * this.scaleY;
+								
+								str.x2 = Number(this.wi) / 2 + this.arAng;
+								gd.x2 = Number(this.wi) - this.shift;
+								str.y2 = Number(this.hi) - this.shift - i * axisStep * this.scaleY;
+								gd.y2 = Number(this.hi) - this.shift - i * axisStep * this.scaleY;
+								
+								str.txtX = Number(this.wi) / 2 + this.arLen / 2;
+								str.txtY = (Number(this.hi) - this.shift + this.arAng / 2) - i * axisStep * this.scaleY;
+								
+								if (Number.isInteger(Number(this.minY) + i * axisStep))
+								{
+									str.txt = (Number(this.minY) + i * axisStep);
+								}
+								else
+								{
+									str.txt = (Number(this.minY) + i * axisStep).toFixed(1);
+								}
+								
+								this.strokesY.push(str);
+								this.gridY.push(gd);
+							}
+						}
+					},					
+					
+					//
+					countPoints:function()
+					{
+						this.points = [];
+						
+						console.log((Number(this.endX) - Number(this.shift) / Number(this.scale)));
+						
+						for (var i = 0; i <= ((Number(this.endX)) - (Number(this.startX))) / Number(this.step) ; i++)
+						{
+							var pt = new Object();
+							
+							pt.x = (Number(this.startX) + Number(this.step) * i).toFixed(5);
+							pt.y = Math.sin(pt.x).toFixed(5);
+							
+							if (pt.y < this.minY)
+							{
+								this.minY = pt.y;
+							}
+							
+							if (pt.y > this.maxY)
+							{
+								this.maxY = pt.y;
+							}
+							
+							this.points.push(pt);
+						}
+						
+						//Округляем минимальное значение функции в меньшую сторону
+						this.minY = Math.floor(this.minY);
+						//Округляем максимальное значение функции в большую сторону
+						this.maxY = Math.ceil(this.maxY);
+						
+						this.lines = [];
+						
+						for (var i = 0; i < this.points.length - 1 ; i++)
+						{
+							var ln = new Object();
+							
+							ln.x1 = (this.points[i].x) * this.scaleX + ( Number(this.wi) ) / 2;
+							ln.y1 = (this.points[i].y) * this.scaleY + ( Number(this.hi) ) / 2;
+							ln.x2 = (this.points[i + 1].x) * this.scaleX + ( Number(this.wi) ) / 2;
+							ln.y2 = (this.points[i + 1].y) * this.scaleY + ( Number(this.hi) ) / 2;
+							
+							this.lines.push(ln);
+						}
+						
+						this.countStrokesX();
+						this.countStrokesY();
+					},
+
+					//Пишем пример в Excel
+					writeExampleExcel:function()
+					{						
+						//Задаём имя файла примера
+						var fileName = "example.xlsx";
+						//Создаём новую книгу Excel;
+						var wb = XLSX.utils.book_new();
+						//Эти данные были в исходном примере из Интернета
+						//(структура массива массивов)
+						var data = 
+						[
+							[1, 2, 3],
+							[true, false, null, "sheetjs"],
+							["foo", "bar", new Date("2014-02-19T14:30Z"), "0.3"],
+							["baz", null, "qux"]
+						];
+						//Выдаём имя листу книги Excel
+						var ws_name = "SheetJS";						
+						
+						//Создаём лист Excel, куда записываем данные из примера
+						//функция aoa_to_sheet требует на вход массив массиовов
+						//(aoa - array of arrays)
+						var ws = XLSX.utils.aoa_to_sheet(data);
+						
+						//Добавляем лист в книгу Excel
+						XLSX.utils.book_append_sheet(wb, ws, ws_name);
+						
+						//Пишем файл книги Excel
+						XLSX.writeFile(wb, fileName);
+					},
+					
+					//Пишем точки графика в Excel
+					writePointsExcel:function()
+					{						
+						//Задаём имя файла
+						var filename = "points.xlsx";
+						//Создаём книгу Excel;
+						var wb = XLSX.utils.book_new();
+						//Выдаём имя листу книги Excel
+						var ws_name = "Синусоида";						
+						
+						//Создаём лист Excel, куда записываем точки графика;
+						//Функция требует на вход json
+						var ws = XLSX.utils.json_to_sheet(this.points);
+						
+						// Добавляем лист в книгу
+						XLSX.utils.book_append_sheet(wb, ws, ws_name);
+						
+						// Пишем файл
+						XLSX.writeFile(wb, filename);
+					},
+					
+					//Пишем точки графика в Excel
+					writePointsForm:function()
+					{	
+						//Ширина колонок
+						var wscols = [ {wpx: 300}, {wpx: 200} ];
+						//Объединяемые ячейки
+						var wsmerges = [ {s:'A2', e:'B3'} ];						
+						//Задаём имя файла
+						var filename = "points.xlsx";
+						//Создаём книгу Excel;
+						var wb = XLSX.utils.book_new();
+						//Выдаём имя листу книги Excel
+						var ws_name = "Синусоида";						
+						
+						//Создаём лист Excel, куда записываем точки графика;
+						//Функция требует на вход json
+						var ws = XLSX.utils.json_to_sheet(this.points);
+						
+						ws['!cols'] = wscols;
+						ws['!merges'] = wsmerges;
+						
+						console.log(ws['!merge']);
+						
+						// Добавляем лист в книгу
+						XLSX.utils.book_append_sheet(wb, ws, ws_name);
+						
+						console.log(wb);
+						
+						//Пишем файл
+						XLSX.writeFile(wb, filename);
+					}					
+				},
+				
+				//
+				created: function()
+				{
+					this.countPoints();
+				}
+			});
+		</SCRIPT>
+
+		<STYLE TYPE="text/css">
+			svg
+			{
+				border: 1px solid #000000;
+			}
+			
+			input
+			{
+				width:60px;
+			}
+		</STYLE>
+
+	</BODY>
+
+</HTML>
